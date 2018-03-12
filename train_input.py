@@ -22,8 +22,8 @@ pre_path = "train_pad/"
 intput_blouse_file =  "Annotations/train_blouse_coord.csv"
 scale = 4
 #x (m, 宽*高*3)
-def set_x_one_hot(df , scale = 1 , folder =  'train/'):
-    filepath_test = folder+df.loc[0,'image_id']
+def set_x_flat(df , scale = 1 , folder =  'train/'):
+    filepath_test = folder+df.iloc[0,0]
     img = Image.open(filepath_test)
     np_img = np.array(img)
     img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
@@ -47,6 +47,29 @@ def set_x_one_hot(df , scale = 1 , folder =  'train/'):
 #     np.savetxt('images.txt' , x_all)
     return x_all[1:]
 
+def set_x_img(df , scale = 1 , folder =  'train/'):
+    filepath_test = folder+df.iloc[0,0]
+    img = Image.open(filepath_test)
+    np_img = np.array(img)
+    img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+    x_all =np.expand_dims( np.array(img) , axis=0)
+    size= df.shape[0]  
+    
+    for idx,row in df.iterrows():
+        filepath_test =folder+row['image_id']
+        img = Image.open(filepath_test)
+        np_img = np.array(img)
+        img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+
+        np_img = np.array(img)
+        #print(np_img.shape)
+#         np.concatenate(x_all,np.array(new_img))
+        x_all = np.append(x_all,np.expand_dims(np_img,axis=0),axis=0)
+#     print(x_all.shape)
+#     x_all=x_all.reshape((size,-1))
+#     print(x_all.shape)
+#     np.savetxt('images.txt' , x_all)
+    return x_all[1:]
 # y (m,关键点*3)
 def set_y_coord(df,scale = 1):
     columns = df.columns
@@ -58,25 +81,53 @@ def set_y_coord(df,scale = 1):
 
     y_coord[:,np.arange(0,y_coord.shape[1],3)] = y_coord[:,np.arange(0,y_coord.shape[1],3)]/scale
     y_coord[:,np.arange(1,y_coord.shape[1],3)] = y_coord[:,np.arange(1,y_coord.shape[1],3)]/scale
-
     
     l_m_index = np.append(np.arange(0,y_coord.shape[1],3), np.arange(1,y_coord.shape[1],3) )
 
+    l_m_index = np.sort(l_m_index)
+    vis_index = np.arange(2,y_coord.shape[1],3)
+
     
-    return y_coord[:,l_m_index]
+    # Whether has landmark point
+    has_lm_data = y_coord[:,vis_index]
+    has_lm_data[has_lm_data==0]=1
+    has_lm_data[has_lm_data==-1]=0
 
-    return y_coord
+    # Whether is visible
+    is_vis_data = y_coord[:,vis_index]
+    is_vis_data[np.logical_or( is_vis_data ==-1 , is_vis_data==0 )]=0
+    
+  
+    return_array = np.concatenate((y_coord[:,l_m_index],has_lm_data , is_vis_data),axis=1)
+    return return_array
+    #x1,y1 ... xn, yn
+    #lm_1 ... lm_n
+    #vis_1 ... vis_n
 
 
 
 
-def get_x_y(df_size=100,scale=1,path =  "train_pad/Annotations/train_blouse_coord.csv"):
+def get_x_y(df_size=100,scale=1,path =  "train_pad/Annotations/train_blouse_coord.csv" ,flat_x = True):
     df = pd.read_csv(path)
 
     df=df[:df_size]
     
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+    y_train = set_y_coord(df , scale)
 
-    x_train = set_x_one_hot(df, scale, "train_pad/")
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train
+ #
+def get_x_y_s_e(start = 0,end=100,scale=1,path =  "train_pad/Annotations/train_blouse_coord.csv"):
+    df = pd.read_csv(path)
+
+    df=df[start:end]
+    
+
+    x_train = set_x_flat(df, scale, "train_pad/")
 
     y_train = set_y_coord(df , scale)
 
@@ -84,10 +135,11 @@ def get_x_y(df_size=100,scale=1,path =  "train_pad/Annotations/train_blouse_coor
     return x_train,y_train
 
 if __name__ == "__main__":
-    data_blouse_coord = pd.read_csv(pre_path + intput_blouse_file)
+    x_input,y_input = get_x_y(10,1)
+    data_cols = y_input.shape[1]
+    lm_cnt = int(y_input.shape[1]/4)
+    id_coords = np.arange(0, lm_cnt*2)
+    id_islm = np.arange(lm_cnt*2, lm_cnt*3)
+    id_vis = np.arange(lm_cnt*3, lm_cnt*4)
 
-    small_data_blouse_coord = data_blouse_coord.loc[:1,:] 
-    x_train = set_x_one_hot(small_data_blouse_coord, scale, pre_path)
-
-    y_train = set_y_coord(small_data_blouse_coord , scale)
-    print(x_train.shape , y_train.shape)
+    print(y_input[:,id_islm] )
