@@ -194,7 +194,7 @@ def vgg_16(inputs,
       net = slim.max_pool2d(net, [2, 2], scope='pool4')
       net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
       net = slim.max_pool2d(net, [2, 2], scope='pool5')
-
+      return net
       # Use conv2d instead of fully_connected layers.
       # net = slim.conv2d(net, 4096, [7, 7], padding=fc_conv_padding, scope='fc6')
 
@@ -277,7 +277,7 @@ def vgg_19(inputs,
       net = slim.max_pool2d(net, [2, 2], scope='pool4')
       net = slim.repeat(net, 4, slim.conv2d, 512, [3, 3], scope='conv5')
       net = slim.max_pool2d(net, [2, 2], scope='pool5')
-
+      
       # Use conv2d instead of fully_connected layers.
       net = slim.conv2d(net, 4096, [7, 7], padding=fc_conv_padding, scope='fc6')
       net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
@@ -351,8 +351,10 @@ def vgg_16_with_img_size(inputs,
     with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
                         outputs_collections=end_points_collection):
       net = slim.repeat(inputs, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+      net1= slim.max_pool2d(net, [2, 2], scope='pool1')
       net = slim.max_pool2d(net, [2, 2], scope='pool1')
       net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+      net2 = slim.max_pool2d(net, [2, 2], scope='pool1')
       net = slim.max_pool2d(net, [2, 2], scope='pool2')
       net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
       net = slim.max_pool2d(net, [2, 2], scope='pool3')
@@ -360,7 +362,11 @@ def vgg_16_with_img_size(inputs,
       net = slim.max_pool2d(net, [2, 2], scope='pool4')
       net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
       net = slim.max_pool2d(net, [2, 2], scope='pool5')
+      
+      net = tf.reshape(net, [-1, int(im_size/32)*int(im_size/32)*512])
 
+      net1 = tf.reshape(net1 ,shape=[-1,int(im_size/2)*int(im_size/2)*64] )
+      return net
       # Use conv2d instead of fully_connected layers.
       # net = slim.conv2d(net, 4096, [7, 7], padding=fc_conv_padding, scope='fc6')
 
@@ -369,6 +375,7 @@ def vgg_16_with_img_size(inputs,
                          scope='dropout6')
       net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
       net = tf.reshape(net, shape=[-1,4096])
+
       return net
       # Convert end_points_collection into a end_point dict.
       # end_points = slim.utils.convert_collection_to_dict(end_points_collection)

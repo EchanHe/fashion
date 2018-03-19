@@ -8,18 +8,17 @@ y (m,关键点*3)
 import numpy as np
 import pandas as pd
 
-import matplotlib.pyplot as plt
-from scipy import misc
 
-import imageio
 from PIL import Image
-from sklearn.preprocessing import OneHotEncoder
-# import pillow
+import categories
 
 
 
 pre_path = "train_pad/"
 intput_blouse_file =  "Annotations/train_blouse_coord.csv"
+
+input_dict = {0:"Annotations/train_blouse_coord.csv" , 1:"Annotations/train_outwear_coord.csv" , 2 :"Annotations/train_trousers_coord.csv"}
+
 scale = 4
 #x (m, 宽*高*3)
 def set_x_flat(df , scale = 1 , folder =  'train/'):
@@ -107,7 +106,45 @@ def set_y_coord(df,scale = 1):
 
 
 
-def get_x_y(df_size=100,scale=1,path =  "train_pad/Annotations/train_blouse_coord.csv" ,flat_x = True):
+def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
+    df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
+    
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+    y_train = set_y_coord(df , scale)
+
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train
+ #
+def get_x_y_s_e(start = 0,end=100,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
+    df = pd.read_csv(path)
+
+    df=df[start:end]
+    
+
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+
+    y_train = set_y_coord(df , scale)
+
+    print(x_train.shape)
+    return x_train,y_train
+
+def get_x_pred(df_size=100,scale=1,pre_dir="test_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
     df = pd.read_csv(path)
 
     df=df[:df_size]
@@ -119,20 +156,8 @@ def get_x_y(df_size=100,scale=1,path =  "train_pad/Annotations/train_blouse_coor
     y_train = set_y_coord(df , scale)
 
     print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
-    return x_train,y_train
- #
-def get_x_y_s_e(start = 0,end=100,scale=1,path =  "train_pad/Annotations/train_blouse_coord.csv"):
-    df = pd.read_csv(path)
+    return x_train,y_train, df[["image_id","image_category"]]
 
-    df=df[start:end]
-    
-
-    x_train = set_x_flat(df, scale, "train_pad/")
-
-    y_train = set_y_coord(df , scale)
-
-    print(x_train.shape)
-    return x_train,y_train
 
 if __name__ == "__main__":
     x_input,y_input = get_x_y(10,1)
