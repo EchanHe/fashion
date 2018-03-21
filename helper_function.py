@@ -3,11 +3,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-from scipy import misc
-
-import imageio
 from PIL import Image
-from sklearn.preprocessing import OneHotEncoder
 # import pillow
 
 #helper function:
