@@ -12,6 +12,7 @@ import pandas as pd
 from PIL import Image
 import categories
 
+import time
 
 
 pre_path = "train_pad/"
@@ -122,6 +123,26 @@ def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
 
     print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
     return x_train,y_train
+
+
+def get_x_y_time(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
+    start_time = time.time()
+    df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
+    print("--- %s secs reading data ---" % ((time.time() - start_time)))
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+    print("--- %s secs reading X ---" % ((time.time() - start_time)))
+    y_train = set_y_coord(df , scale)
+    print("--- %s secs reading Y ---" % ((time.time() - start_time)))
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train   
  #
 def get_x_y_s_e(start = 0,end=100,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
     path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
@@ -160,11 +181,22 @@ def get_x_pred(df_size=100,scale=1,pre_dir="test_pad/",cates=0,flat_x = True):
 
 
 if __name__ == "__main__":
-    x_input,y_input = get_x_y(10,1)
-    data_cols = y_input.shape[1]
-    lm_cnt = int(y_input.shape[1]/4)
-    id_coords = np.arange(0, lm_cnt*2)
-    id_islm = np.arange(lm_cnt*2, lm_cnt*3)
-    id_vis = np.arange(lm_cnt*3, lm_cnt*4)
+    # x_input,y_input = get_x_y(10,1)
+    # data_cols = y_input.shape[1]
+    # lm_cnt = int(y_input.shape[1]/4)
+    # id_coords = np.arange(0, lm_cnt*2)
+    # id_islm = np.arange(lm_cnt*2, lm_cnt*3)
+    # id_vis = np.arange(lm_cnt*3, lm_cnt*4)
 
-    print(y_input[:,id_islm] )
+    # print(y_input[:,id_islm] )
+
+
+    x,y = get_x_y_time(200,scale=1)
+    np.savetxt("foo.csv", x, delimiter=",")
+
+    start_time = time.time()
+    a=np.genfromtxt('foo.csv',delimiter=',')
+    print("--- %s secs reading data ---" % ((time.time() - start_time)))
+    # get_x_y_time(200,scale=1)
+    # get_x_y_time(2000,scale=16)
+    # get_x_y_time(2000 ,scale=16, flat_x = False)

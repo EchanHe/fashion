@@ -137,9 +137,18 @@ def loss_all(coords_hat,logits_lm,logits_vis, Y):
     cnt = logits_lm.shape[1]
     loss_op_lm = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
         logits=logits_lm, labels=Y[:,cnt*2:cnt*3])) 
-    loss_op_vis = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-        logits=logits_vis, labels=Y[:,cnt*3:]))
 
+    logits_vis_mask = tf.multiply(logits_vis,Y[:,cnt*2:cnt*3])
+    GT_vis = tf.multiply(Y[:,cnt*3:],Y[:,cnt*2:cnt*3])
+    # loss_op_vis = tf.reduce_mean(tf.square(logits_vis_mask - GT_vis)) / 2.
+
+    loss_op_vis = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+        logits=logits_vis, labels=Y[:,cnt*3:])) 
+
+    # tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+    #     logits=GT_vis, labels=GT_vis))
+    # loss_op_vis_1 = (tf.nn.softmax_cross_entropy_with_logits(
+    #     logits=Y[:,cnt*2:cnt*3], labels=Y[:,cnt*2:cnt*3]))
     mask=tf.concat(
     [Y[:,cnt*2:cnt*3],Y[:,cnt*2:cnt*3]],
     axis=1)
@@ -149,9 +158,10 @@ def loss_all(coords_hat,logits_lm,logits_vis, Y):
     # coord_diff[:,cnt:] = tf.multiply(coord_diff[:,cnt:] ,Y[:,cnt*2:cnt*3] )
 
     loss_op_coords = tf.reduce_mean(tf.square(coord_diff)) / 2.
-    loss_op = 5*loss_op_coords+loss_op_lm+loss_op_vis
+    loss_op = loss_op_coords+loss_op_lm+loss_op_vis
 
-    return loss_op
+
+    return loss_op,loss_op_lm,loss_op_vis,loss_op_coords
 
 
 def acc_all(coords_hat,logits_lm,logits_vis, Y):
@@ -163,6 +173,8 @@ def acc_all(coords_hat,logits_lm,logits_vis, Y):
     accuracy_lm =tf.reduce_mean(tf.cast(tf.equal(pred_lm, Y[:,lm_cnt*2:lm_cnt*3]), tf.float32))
     accuracy_vis =tf.reduce_mean(tf.cast(tf.equal(pred_vis, Y[:,lm_cnt*3:]), tf.float32))
     accuracy_bool =( accuracy_lm+accuracy_vis) /2.
+
+    # accuracy_bool = accuracy_lm
 
     accuracy = tf.reduce_mean(tf.sqrt(tf.square(coords_hat - Y[:,:lm_cnt*2]))) 
     return accuracy ,accuracy_bool   

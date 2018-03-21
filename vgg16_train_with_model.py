@@ -12,6 +12,12 @@ import numpy as np
 import vgg16_coord_model as model
 import sklearn.model_selection as sk
 from enum import Enum
+
+import sys
+
+import time
+start_time = time.time()
+
 class MODE(Enum):
     TRAIN = 1
     VALID = 2
@@ -19,29 +25,39 @@ class MODE(Enum):
 
 
 imsize = 128
-learning_rate = 0.0001
+learning_rate = 0.005
 ##steps and batch
 category_name = "skirt"
 
 total_size = -1
 test_percent=0.001
-batch_size = 50
-num_steps =10
+batch_size = 30
+num_steps =40
 display_step = 5
 dropout = 0.75
 
 save_log=True
 load_var = True
 
-retrain=True
+retrain=False
 flag_only_coord = False
 
+
+######
+args = sys.argv
+print(args)
+category_name = args[1]
+imsize = int(args[2])
+total_size =int( args[3])
+#####
 logs_path="./tmp/"
 model_path="./vgg_16.ckpt"
-output_model_path="./tmp/ckpt/vgg/vgg_16_out_{}".format(imsize)+".ckpt"
+output_model_path="./tmp/ckpt/vgg/vgg_16_out_"+category_name+"_{}".format(imsize)+".ckpt"
 
 ###Deal with input image
-x_input,y_input = train_input.get_x_y(total_size,512/imsize, flat_x = False)
+x_input,y_input = train_input.get_x_y(total_size,512/imsize, cates = category_name, flat_x = False)
+print("--- %s mins reading data ---" % ((time.time() - start_time)/60.0))
+start_time=time.time()
 # x_input,y_input = train_input.get_x_y_s_e(6000,6200,scale=512/imsize,pre_dir="train_pad/",cates=category_name,flat_x = False)
 print("##############")
 print("Image Size: {} \n\nCategory: {}\ntotal_size: {}\nbatch_size: {}\nsteps: {}".format(imsize,category_name,total_size , batch_size,num_steps))
@@ -98,7 +114,7 @@ else:
     Y = tf.placeholder(tf.float32, [None, lm_cnt*4])
 
     coords_hat, logits_lm , logits_vis = model.fc_layers_all_1_layer(conv_layer,keep_prob=keep_prob,imsize = imsize,lm_cnt =lm_cnt)
-    loss_op = model.loss_all(coords_hat,logits_lm,logits_vis, Y )
+    loss_op,l_is_lm,l1,l2 = model.loss_all(coords_hat,logits_lm,logits_vis, Y )
     accuracy,accuracy_bool = model.acc_all(coords_hat,logits_lm,logits_vis, Y )
 
 #optimizer 
@@ -181,14 +197,27 @@ with tf.Session() as sess:
                       "{:.4f}".format(loss) + ", Training Accuracy= " + \
                       "{:.3f}".format(acc) +", bool acc= "+\
                     "{:.3f}".format(acc_bool))
+            is_lm_v,l_is_lm_v,l_vis,l_lm = sess.run([Y[:,lm_cnt*2:lm_cnt*3] ,l_is_lm,l1,l2] ,
+                        feed_dict = {conv_layer: results_mini,
+                                                         Y: y_train_mini,
+                                              keep_prob:1.0} )
+            # print("Loss: is lm: {:.3f}, is vis: {:.3f} landmarks:{:.3f}".format(l_is_lm_v,l_vis,l_lm))
+            print("Loss: is lm: {:.3f}, landmarks:{:.3f}".format(l_is_lm_v,l_lm))
             print("------")
             print(np.sum(y_train_mini>=0))
             print(np.sum(co>=0))
             print(np.sum(co<0))
-        if step==60:
-            learning_rate=0.00005
-        if step==100:
-            learning_rate=0.00001
+            print("------")
+
+                # print(is_lm_v)
+                # print(l_vis)
+                # print(l_lm)
+        # if step==60:
+        #     learning_rate=0.00005
+        # if step==100:
+        #     learning_rate=0.00001
+        # if step==150:
+        #     learning_rate=0.000001
 
     print("Model save in path : " , output_model_path)            
     save_path = saver.save(sess, output_model_path)   
@@ -200,10 +229,10 @@ with tf.Session() as sess:
             sess.run(accuracy_bool, feed_dict={conv_layer: results,
                                       Y: y_test,
                                       keep_prob:1.0}))
-    # a,acc = sess.run([coords_hat,accuracy], feed_dict={vgg_fc_out: results,
-    #                                   Y: y_test,
-    #                                   keep_prob:1.0})
-    #     results=sess.run(net, feed_dict={X:x_input})
+    a,acc = sess.run([coords_hat,accuracy], feed_dict={conv_layer: results,
+                                      Y: y_test,
+                                      keep_prob:1.0})
 
 
-    # np.savetxt("./vgg_result.csv", a,fmt='%i', delimiter=",")
+    np.savetxt("./vgg_result"+str(imsize)+".csv", a,fmt='%i', delimiter=",")
+print("--- %s mins runing model  ---" % ((time.time() - start_time)/60.0))
