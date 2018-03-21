@@ -28,9 +28,9 @@ def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
             plt.plot(x,y,'*')
             
     filepath = pre_dir+df.loc[index,'image_id']
-    img = Image.open(filepath)
-    width = int(np.array(img).shape[0]/scale)
-    height = int(np.array(img).shape[1]/scale)
+    img =  Image.open(filepath)
+    width, height =img.size
+
     img = img.resize((width,height))
     plt.imshow(img)
     
