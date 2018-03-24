@@ -25,22 +25,25 @@ scale = 4
 def set_x_flat(df , scale = 1 , folder =  'train/'):
     filepath_test = folder+df.iloc[0,0]
     img = Image.open(filepath_test)
-    np_img = np.array(img)
-    img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
-    x_all =np.expand_dims( np.array(img).reshape((-1)) , axis=0)
+    # np_img = np.array(img)
+    # img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+    # x_all =np.expand_dims( np.array(img) , axis=0)
     size= df.shape[0]  
-    
+    width = int(img.size[0]/scale)
+    x_all = np.zeros((size,width*width*3))
+    i=0
     for idx,row in df.iterrows():
         filepath_test =folder+row['image_id']
         img = Image.open(filepath_test)
-        np_img = np.array(img)
+    
         
-        img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+        img = img.resize((width,width))
         np_img = np.array(img)
         np_img = np_img.reshape((-1))
         #print(np_img.shape)
 #         np.concatenate(x_all,np.array(new_img))
-        x_all = np.append(x_all,np.expand_dims(np_img,axis=0),axis=0)
+        x_all[i,:] = np_img
+        i+=1
 #     print(x_all.shape)
 #     x_all=x_all.reshape((size,-1))
 #     print(x_all.shape)
@@ -50,26 +53,27 @@ def set_x_flat(df , scale = 1 , folder =  'train/'):
 def set_x_img(df , scale = 1 , folder =  'train/'):
     filepath_test = folder+df.iloc[0,0]
     img = Image.open(filepath_test)
-    np_img = np.array(img)
-    img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
-    x_all =np.expand_dims( np.array(img) , axis=0)
+    # np_img = np.array(img)
+    # img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+    # x_all =np.expand_dims( np.array(img) , axis=0)
     size= df.shape[0]  
-    
+    width = int(img.size[0]/scale)
+    x_all = np.zeros((size,width,width,3))
+
+    i=0
     for idx,row in df.iterrows():
         filepath_test =folder+row['image_id']
         img = Image.open(filepath_test)
-        np_img = np.array(img)
-        img = img.resize((int(np_img.shape[1]/scale),int(np_img.shape[0]/scale)))
+        img = img.resize((width,width))
 
         np_img = np.array(img)
-        #print(np_img.shape)
-#         np.concatenate(x_all,np.array(new_img))
-        x_all = np.append(x_all,np.expand_dims(np_img,axis=0),axis=0)
+        x_all[i,:,:,:] = np_img
+        i+=1
 #     print(x_all.shape)
 #     x_all=x_all.reshape((size,-1))
 #     print(x_all.shape)
 #     np.savetxt('images.txt' , x_all)
-    return x_all[1:]
+    return x_all
 # y (m,关键点*3)
 def set_y_coord(df,scale = 1):
     columns = df.columns
@@ -109,7 +113,7 @@ def set_y_coord(df,scale = 1):
 
 def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
 
-    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord_augs.csv"
     print("Read data from files: ",path)
     df = pd.read_csv(path)
     if df_size !=-1:
@@ -124,6 +128,22 @@ def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
     print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
     return x_train,y_train
 
+def get_x_y_valid(df_size=-1,scale=1,pre_dir="./train_warm_up_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
+    df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
+    
+    if flat_x:
+        x_train = set_x_flat(df, scale, pre_dir)
+    else:
+        x_train = set_x_img(df, scale, pre_dir)
+    y_train = set_y_coord(df , scale)
+
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train
 
 def get_x_y_time(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
 
@@ -150,7 +170,7 @@ def get_x_y_s_e(start = 0,end=100,scale=1,pre_dir="train_pad/",cates=0,flat_x = 
     df = pd.read_csv(path)
 
     df=df[start:end]
-    
+
 
     if flat_x:
         x_train = set_x_flat(df, scale, "train_pad/")
@@ -162,22 +182,21 @@ def get_x_y_s_e(start = 0,end=100,scale=1,pre_dir="train_pad/",cates=0,flat_x = 
     print(x_train.shape)
     return x_train,y_train
 
-def get_x_pred(df_size=100,scale=1,pre_dir="test_pad/",cates=0,flat_x = True):
+def get_x_pred(df_size=100,scale=1,pre_dir="./test_pad/",cates=0,flat_x = True):
 
-    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    path = pre_dir +"test_"+categories.get_cate_name(cates)+".csv"
     print("Read data from files: ",path)
     df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
 
-    df=df[:df_size]
-    
     if flat_x:
-        x_train = set_x_flat(df, scale, "train_pad/")
+        x_train = set_x_flat(df, scale, pre_dir)
     else:
-        x_train = set_x_img(df, scale, "train_pad/")
-    y_train = set_y_coord(df , scale)
+        x_train = set_x_img(df, scale, pre_dir)
 
-    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
-    return x_train,y_train, df[["image_id","image_category"]]
+    print("X shape: ",x_train.shape )
+    return x_train, df[["image_id","image_category"]]
 
 
 if __name__ == "__main__":
