@@ -13,7 +13,7 @@ from PIL import Image
 import categories
 
 import time
-
+from scipy.ndimage import gaussian_filter
 
 pre_path = "train_pad/"
 intput_blouse_file =  "Annotations/train_blouse_coord.csv"
@@ -48,7 +48,7 @@ def set_x_flat(df , scale = 1 , folder =  'train/'):
 #     x_all=x_all.reshape((size,-1))
 #     print(x_all.shape)
 #     np.savetxt('images.txt' , x_all)
-    return x_all[1:]
+    return x_all
 
 def set_x_img(df , scale = 1 , folder =  'train/'):
     filepath_test = folder+df.iloc[0,0]
@@ -109,7 +109,27 @@ def set_y_coord(df,scale = 1):
     #vis_1 ... vis_n
 
 
+def set_y_map(df,scale = 1):
+    columns = df.columns
+    if "height" in columns or "width" in columns:
+        l_m_columns = columns.drop(['image_id' , 'image_category','height','width'])
+    else:
+        l_m_columns = columns.drop(['image_id' , 'image_category'])
+    y_coord = df[l_m_columns].as_matrix()
+    lm_cnt = int(y_coord.shape[1]/3)
+    df_size = y_coord.shape[0]
+    size = int(512/(scale*8)-1)
+    y_map = np.zeros((df_size,size,size,lm_cnt))
 
+    for j in range(df_size):
+        for i in range(lm_cnt):
+            x = int(y_coord[j,i*3]/scale)
+            y = int(y_coord[j,i*3+1]/scale)
+            if (x>0 and x <size) and (y>0 and y <size):
+                y_map[j,x,y,i] = 1
+                y_map[j,:,:,i] = gaussian_filter(y_map[j,:,:,i],sigma=1)
+
+    return y_map
 
 def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
 
@@ -124,6 +144,23 @@ def get_x_y(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
     else:
         x_train = set_x_img(df, scale, "train_pad/")
     y_train = set_y_coord(df , scale)
+
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train
+
+def get_x_y_map(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord_augs.csv"
+    print("Read data from files: ",path)
+    df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
+    
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+    y_train = set_y_map(df , scale)
 
     print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
     return x_train,y_train

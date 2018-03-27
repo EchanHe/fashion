@@ -21,12 +21,15 @@ def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
         if coord[0]!=-1:
             x=coord[0]/scale
             y=coord[1]/scale
-            plt.plot(x,y,'*')
+            plt.plot(x,y,'*',label=col)
+            plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=12)
+            print(x,y)
             
     filepath = pre_dir+df.loc[index,'image_id']
     img =  Image.open(filepath)
     width, height =img.size
-
+    width = int(width/scale)
+    height = int(height/scale)
     img = img.resize((width,height))
     plt.imshow(img)
     
