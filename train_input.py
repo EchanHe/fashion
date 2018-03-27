@@ -165,6 +165,23 @@ def get_x_y_map(df_size=-1,scale=1,pre_dir="train_pad/",cates=0,flat_x = True):
     print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
     return x_train,y_train
 
+def get_x_y_map_valid(df_size=-1,scale=1,pre_dir="./train_warm_up_pad/",cates=0,flat_x = True):
+
+    path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
+    print("Read data from files: ",path)
+    df = pd.read_csv(path)
+    if df_size !=-1:
+        df=df[:df_size]
+    
+    if flat_x:
+        x_train = set_x_flat(df, scale, "train_pad/")
+    else:
+        x_train = set_x_img(df, scale, "train_pad/")
+    y_train = set_y_map(df , scale)
+
+    print("X shape: ",x_train.shape , "Y shape: " , y_train.shape)
+    return x_train,y_train    
+
 def get_x_y_valid(df_size=-1,scale=1,pre_dir="./train_warm_up_pad/",cates=0,flat_x = True):
 
     path = pre_dir +"Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
