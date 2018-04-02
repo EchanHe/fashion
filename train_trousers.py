@@ -61,12 +61,12 @@ class Config():
         self.learning_rate = learning_rate
                 #file path
         self.logdir =  os.path.join("./log/train_log/CPM/", category , str(self.learning_rate))
-        self.params_dir = "./params/CPM_with_center/" + category + "/"
+        self.params_dir = "./params/CPM/" + category + "/"
     # =================== modify parameters ==================
     TAG = "_demo" # used for uniform filename
                # "_demo": train with demo images
                # "": (empty) train with ~60000 images
-    batch_size = 20
+    batch_size = 2
     initialize = True # True: train from scratch (should also
                     # delete the corresponding params files
                     # in params_dir);
@@ -95,7 +95,7 @@ class Config():
 
     
     # image config
-    points_num = 4
+    points_num = 7
     fm_channel = points_num + 1
     #   origin_height = 212
     #   origin_width = 256
@@ -117,27 +117,39 @@ class Config():
     moving_average_decay = 0.999
 
 
+l = 5e-06
+
 
 imsize = 512
 total_size = -1
 test_size =30
 category_name = "trousers"
-config = Config(category_name,imsize,0.001)
 
-x_input,y_input,coords_input,maps_input = train_input.get_x_y_map(total_size,512/imsize, cates = category_name, flat_x = False)
+config = Config(category_name,imsize,l)
 
-input_data = train_input.data2(x_input,y_input,coords_input,maps_input,config.batch_size,is_train=True)
+print("read data from: "+"train_pad/Annotations/train_"+category_name+"_coord.csv")
+print("steps: {}\nlearning rates: {}".format(config.max_iteration ,config.learning_rate))
 
-x_test, y_test,coord_test,center_test  = train_input.get_x_y_map_valid(test_size,512/imsize,pre_dir="./train_warm_up_pad/", cates = category_name, flat_x = False)
-test_data = train_input.data2(x_test,y_test,coord_test,center_test,config.batch_size,is_train=True)
+df = pd.read_csv("train_pad/Annotations/train_"+category_name+"_coord.csv")
+df = df[:10]
+input_data = train_input.data_stream(df,config.batch_size,is_train=True)
+
+
+
+# x_input,y_input,coords_input,maps_input = train_input.get_x_y_map(total_size,512/imsize, cates = category_name, flat_x = False)
+
+# input_data = train_input.data2(x_input,y_input,coords_input,maps_input,config.batch_size,is_train=True)
+
+# x_test, y_test,coord_test,center_test  = train_input.get_x_y_map_valid(test_size,512/imsize,pre_dir="./train_warm_up_pad/", cates = category_name, flat_x = False)
+# test_data = train_input.data2(x_test,y_test,coord_test,center_test,config.batch_size,is_train=True)
 
 ###model####
 
-l = 5e-06
+
 
 print("learning rate: {}".format(l))
 tf.reset_default_graph()
-config = Config(category_name,imsize,l)
+
 model = cpm.CPM(config)
 predict = model.inference_pose_vgg()
 
@@ -169,7 +181,7 @@ with tf.Session() as sess:
     logdir = config.logdir
 
     writer = tf.summary.FileWriter(logdir, sess.graph)
-    for i in range(5000):
+    for i in range(config.max_iteration):
 
         X_train_mini,y_train_mini,coords_mini,center_mini = input_data.get_next_batch()
         feed_dict = {
@@ -177,7 +189,7 @@ with tf.Session() as sess:
                     model.labels: y_train_mini,
                     }
         sess.run(train_op, feed_dict=feed_dict)
-        if (i + 10) % 10 == 0:
+        if (i + 1) % config.summary_iters == 0:
 #             print("accuracy: {}".format(sess.run(accuracy_model, feed_dict=feed_dict)))
 #             print("accuracy: {}".format(len(sess.run(accuracy_model, feed_dict=feed_dict))))
             print("{} steps Loss: {}".format(i,sess.run(loss, feed_dict=feed_dict)))
@@ -188,6 +200,7 @@ with tf.Session() as sess:
             summary = sess.run(merged, feed_dict=feed_dict)    
             writer.add_summary(summary, tmp_global_step)
             writer.flush()
+
     #abs
 #     feed_dict = {
 #         model.images: x_test,
