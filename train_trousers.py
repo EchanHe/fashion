@@ -66,7 +66,7 @@ class Config():
     TAG = "_demo" # used for uniform filename
                # "_demo": train with demo images
                # "": (empty) train with ~60000 images
-    batch_size = 2
+    batch_size = 20
     initialize = True # True: train from scratch (should also
                     # delete the corresponding params files
                     # in params_dir);
@@ -78,7 +78,7 @@ class Config():
     max_iteration = 1000
     checkpoint_iters = 2000
     summary_iters = 100
-    validate_iters = 2000
+    validate_iters = 300
     
     
 #     category
@@ -127,15 +127,16 @@ category_name = "trousers"
 
 config = Config(category_name,imsize,l)
 
-print("read data from: "+"train_pad/Annotations/train_"+category_name+"_coord.csv")
+
 print("steps: {}\nlearning rates: {}".format(config.max_iteration ,config.learning_rate))
 
+print("read data from: "+"train_pad/Annotations/train_"+category_name+"_coord.csv")
 df = pd.read_csv("train_pad/Annotations/train_"+category_name+"_coord.csv")
-df = df[:10]
 input_data = train_input.data_stream(df,config.batch_size,is_train=True)
 
 
-
+df_test = pd.read_csv("train_warm_up_pad/Annotations/train_"+category_name+"_coord.csv")
+test_data = train_input.data_stream(df_test,config.batch_size,is_train=True)
 # x_input,y_input,coords_input,maps_input = train_input.get_x_y_map(total_size,512/imsize, cates = category_name, flat_x = False)
 
 # input_data = train_input.data2(x_input,y_input,coords_input,maps_input,config.batch_size,is_train=True)
@@ -177,6 +178,7 @@ with tf.Session() as sess:
     else:
         sess.run(init_op)
         model.restore(sess, saver, config.load_filename)
+    saver.restore(sess , "./params/CPM_with_center/trousers/cpm_trousers.ckpt-6000")
     merged = tf.summary.merge_all()
     logdir = config.logdir
 
@@ -201,6 +203,13 @@ with tf.Session() as sess:
             writer.add_summary(summary, tmp_global_step)
             writer.flush()
 
+        if (i+1) % config.validate_iters:
+            X_mini,y_mini,coords_mini,center_mini = test_data.get_next_batch()
+            feed_dict = {
+                    model.images: X_mini,
+                    model.labels: y_mini,
+                    }
+            print("{} steps Validation set Loss: {}".format(i,sess.run(loss, feed_dict=feed_dict)))
     #abs
 #     feed_dict = {
 #         model.images: x_test,
