@@ -42,3 +42,8 @@ def get_cate_name(i):
     else:
         assert (i in cates_map), "wrong spell"
         return i
+
+def get_cate_lm_cnts(i):
+    assert (type(i) == str) , "wrong arguement type "
+    cates_map = {"blouse":13 ,"outwear":14,"trousers":7,"skirt":4,"dress":15 }
+    return cates_map[i]

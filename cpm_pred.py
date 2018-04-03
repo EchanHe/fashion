@@ -15,6 +15,7 @@ from enum import Enum
 import sys
 import os
 import time
+import categories
 
 import importlib
 import train_input
@@ -105,6 +106,8 @@ total_size =int( args[3])
 
 scale = int(512/imsize)
 config = Config(category_name,imsize,0.1)
+config.points_num = categories.get_cate_lm_cnts(category_name)
+print("land mark point : {}".format(config.points_num))
 
 pre_path = "./test_pad/"
 file_name = "~/fashion/test_pad/test_"+category_name+".csv"
