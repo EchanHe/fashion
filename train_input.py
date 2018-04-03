@@ -410,10 +410,10 @@ class data:
             return x_mini
         
 class data_stream:
-    def __init__(self,df,batch_size,is_train,scale=1):
+    def __init__(self,df,batch_size,is_train,scale=1,pre_path = "/data/bop16yh/fashion/train_pad/"):
 
         self.df  =df# "train_pad/Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
-
+        self.pre_path = pre_path
         self.scale = scale
         # self.X = X
         self.df_size = df.shape[0]
@@ -449,10 +449,13 @@ class data_stream:
         # print(excerpt)
         # print(df_mini.image_id)
 
-        x_mini = set_x_img(df_mini, self.scale, "train_pad/")
-        y_mini = set_y_map(df_mini , self.scale)
-        coords_mini = set_y_coord(df_mini , 1 , True)
-        center_mini = set_y_center_map(df_mini , self.scale , 1)
+        x_mini = set_x_img(df_mini, self.scale, self.pre_path)
+        if is_train:
+            y_mini = set_y_map(df_mini , self.scale)
+            coords_mini = set_y_coord(df_mini , 1 , True)
+            center_mini = set_y_center_map(df_mini , self.scale , 1)
+
+            center_label_mini = set_y_center_map(df_mini , self.scale)
 
         # print("X shape: ",x_mini.shape , "Y shape: " , y_mini.shape)
         # print("Coords shape: ",coords_mini.shape , "Map shape: " , center_mini.shape)
@@ -460,7 +463,7 @@ class data_stream:
         self.start_idx += batch_size
 
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini
+            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
         else:
             return x_mini
 
@@ -475,86 +478,43 @@ class data_stream:
         df_mini = self.df.iloc[self.start_idx : self.start_idx+batch_size]
 
         # print(df_mini.image_id)
-        x_mini = set_x_img(df_mini, self.scale, "train_pad/")
-        y_mini = set_y_map(df_mini , self.scale)
-        coords_mini = set_y_coord(df_mini , 1 , True)
-        center_mini = set_y_center_map(df_mini , self.scale , 1)
+        x_mini = set_x_img(df_mini, self.scale, self.pre_path)
+        if is_train:
+            y_mini = set_y_map(df_mini , self.scale)
+            coords_mini = set_y_coord(df_mini , 1 , True)
+            center_mini = set_y_center_map(df_mini , self.scale , 1)
+            center_label_mini = set_y_center_map(df_mini , self.scale)
 
         self.start_idx += batch_size
 
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini
+            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
         else:
             return x_mini
         
 
-
-class data2:
-    def __init__(self,X,Y,coords,center,batch_size,is_train):
-
-        self.X = X
-        self.df_size = X.shape[0]
-        self.batch_size = batch_size
-        self.is_train = is_train
-
-
-        self.start_idx =0
-        self.indices = np.arange(self.df_size)
-        np.random.shuffle(self.indices)
-        if is_train:
-            self.coords = coords
-            self.Y = Y
-            self.center = center
-
-        print("Init data class...")
-        print("\tX shape: {}\n\tY shape: {}\n\tbatch_size:{}"\
-            .format(self.X.shape,self.Y.shape, self.batch_size))
-
-
-    
-    def get_next_batch(self):
+    def get_next_batch_no_random_all(self):
         batch_size = self.batch_size
         df_size = self.df_size
         is_train = self.is_train
 
         
         if self.start_idx >= (df_size - batch_size+1):
-            self.start_idx = 0 
-            self.indices = np.arange(self.df_size)
-            np.random.shuffle(self.indices)
+            df_mini = self.df.iloc[self.start_idx : ]
+        else: 
+            df_mini = self.df.iloc[self.start_idx : self.start_idx+batch_size]
 
-        # print(self.start_idx , self.start_idx+batch_size)
-        # print(self.indices)
-        excerpt = self.indices[self.start_idx:self.start_idx + batch_size]
-        x_mini = self.X[excerpt]
+        # print(df_mini.image_id)
+        x_mini = set_x_img(df_mini, self.scale, self.pre_path)
         if is_train:
-            y_mini = self.Y[excerpt] 
-            center_mini = self.center[excerpt]
-            coords_mini = self.coords[excerpt]
+            y_mini = set_y_map(df_mini , self.scale)
+            coords_mini = set_y_coord(df_mini , 1 , True)
+            center_mini = set_y_center_map(df_mini , self.scale , 1)
+            center_label_mini = set_y_center_map(df_mini , self.scale)
 
         self.start_idx += batch_size
-
+        # print(x_mini.shape)
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini
-        else:
-            return x_mini
-
-    def get_next_batch_no_random(self):
-        batch_size = self.batch_size
-        df_size = self.df_size
-        is_train = self.is_train
-
-        
-        if self.start_idx >= (df_size - batch_size+1):
-            self.start_idx = 0 
-        x_mini = self.X[self.start_idx:self.start_idx+batch_size]
-        if is_train:
-            y_mini = self.Y[self.start_idx:self.start_idx+batch_size]
-            coords_mini = self.coords[self.start_idx:self.start_idx+batch_size]
-            center_mini= self.center[self.start_idx:self.start_idx+batch_size]
-        self.start_idx += batch_size
-
-        if is_train:
-            return x_mini , y_mini, coords_mini,center_mini
+            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
         else:
             return x_mini
