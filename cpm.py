@@ -517,6 +517,15 @@ class CPM:
         return train_op
 
 
+    def train_op_fine_tune(self, total_loss,var_list):
+        self._loss_summary(total_loss)
+
+        # optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        # train_op = optimizer.minimize(total_loss)
+
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        train_op = optimizer.minimize(total_loss, var_list=var_list)
+        return train_op
 
 
     def save(self, sess, saver, filename, global_step):
@@ -785,7 +794,10 @@ class CPM:
     def inference_pose_with_center(self,is_train=True):
         lm_cnt = self.points_num
         center_map = self.center_map
-        image = self.images
+        if is_train:
+            image = self.images
+        else:
+            image = self.pred_images
   # corresponds to pose_deploy_resize.prototxt
         with tf.variable_scope('PoseNet'):
             pool_center_lower = layers.avg_pool2d(center_map, 9, 8, padding='SAME')
