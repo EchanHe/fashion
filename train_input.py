@@ -126,10 +126,15 @@ def set_y_map(df,scale = 1):
 
     for j in range(df_size):
         for i in range(lm_cnt):
-            x = int(y_coord[j,i*3]/real_scale)
-            y = int(y_coord[j,i*3+1]/real_scale)
-            # print(x,y)
-            if (x>=0 and x <size) and (y>=0 and y <size):
+            x = int(round(y_coord[j,i*3]/real_scale))
+            y = int(round(y_coord[j,i*3+1]/real_scale))
+            is_lm = y_coord[j,i*3+2]
+            
+            if x>=size:
+                x=size-1
+            if y>=size:
+                y=size-1
+            if is_lm!=-1:
                 y_map[j,y,x,i] = 20
                 y_map[j,:,:,i] = gaussian_filter(y_map[j,:,:,i],sigma=2)
                 # y_map[j,y,x,i]=1
@@ -316,26 +321,6 @@ def get_x_pred(df_size=100,scale=1,pre_dir="./test_pad/",cates=0,flat_x = True):
     return x_train, df[["image_id","image_category"]]
 
 
-if __name__ == "__main__":
-    # x_input,y_input = get_x_y(10,1)
-    # data_cols = y_input.shape[1]
-    # lm_cnt = int(y_input.shape[1]/4)
-    # id_coords = np.arange(0, lm_cnt*2)
-    # id_islm = np.arange(lm_cnt*2, lm_cnt*3)
-    # id_vis = np.arange(lm_cnt*3, lm_cnt*4)
-
-    # print(y_input[:,id_islm] )
-
-
-    x,y = get_x_y_time(200,scale=1)
-    np.savetxt("foo.csv", x, delimiter=",")
-
-    start_time = time.time()
-    a=np.genfromtxt('foo.csv',delimiter=',')
-    print("--- %s secs reading data ---" % ((time.time() - start_time)))
-    # get_x_y_time(200,scale=1)
-    # get_x_y_time(2000,scale=16)
-    # get_x_y_time(2000 ,scale=16, flat_x = False)
 
 class data:
     def __init__(self,X,Y,coords,batch_size,is_train):
@@ -410,7 +395,7 @@ class data:
             return x_mini
         
 class data_stream:
-    def __init__(self,df,batch_size,is_train,scale=1,pre_path = "/data/bop16yh/fashion/train_pad/"):
+    def __init__(self,df,batch_size,is_train,scale=1,pre_path = "./train_pad/"):
 
         self.df  =df# "train_pad/Annotations/train_"+categories.get_cate_name(cates)+"_coord.csv"
         self.pre_path = pre_path
@@ -518,3 +503,24 @@ class data_stream:
             return x_mini , y_mini, coords_mini,center_mini,center_label_mini
         else:
             return x_mini
+
+if __name__ == "__main__":
+    # x_input,y_input = get_x_y(10,1)
+    # data_cols = y_input.shape[1]
+    # lm_cnt = int(y_input.shape[1]/4)
+    # id_coords = np.arange(0, lm_cnt*2)
+    # id_islm = np.arange(lm_cnt*2, lm_cnt*3)
+    # id_vis = np.arange(lm_cnt*3, lm_cnt*4)
+
+    # print(y_input[:,id_islm] )
+
+
+    x,y = get_x_y_time(200,scale=1)
+    np.savetxt("foo.csv", x, delimiter=",")
+
+    start_time = time.time()
+    a=np.genfromtxt('foo.csv',delimiter=',')
+    print("--- %s secs reading data ---" % ((time.time() - start_time)))
+    # get_x_y_time(200,scale=1)
+    # get_x_y_time(2000,scale=16)
+    # get_x_y_time(2000 ,scale=16, flat_x = False)
