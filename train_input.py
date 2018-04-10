@@ -14,6 +14,7 @@ import categories
 
 import time
 from scipy.ndimage import gaussian_filter
+import cv2
 
 pre_path = "train_pad/"
 intput_blouse_file =  "Annotations/train_blouse_coord.csv"
@@ -130,16 +131,42 @@ def set_y_map(df,scale = 1):
             y = int(round(y_coord[j,i*3+1]/real_scale))
             is_lm = y_coord[j,i*3+2]
             
-            if x>=size:
-                x=size-1
-            if y>=size:
-                y=size-1
+
             if is_lm!=-1:
+                if x>=size:
+                    x=size-1
+                if y>=size:
+                    y=size-1
                 y_map[j,y,x,i] = 20
                 y_map[j,:,:,i] = gaussian_filter(y_map[j,:,:,i],sigma=2)
                 # y_map[j,y,x,i]=1
     y_map = np.round(y_map,4)
     return y_map
+
+def set_y_vis_map(df,scale = 1):
+    columns = df.columns
+    if "height" in columns or "width" in columns:
+        l_m_columns = columns.drop(['image_id' , 'image_category','height','width'])
+    else:
+        l_m_columns = columns.drop(['image_id' , 'image_category'])
+    y_coord = df[l_m_columns].as_matrix()
+    lm_cnt = int(y_coord.shape[1]/3)
+    df_size = y_coord.shape[0]
+    size = int(512/(scale*8))
+    real_scale = 512/size
+    y_map = np.ones((df_size,size,size,lm_cnt))
+
+    for j in range(df_size):
+        for i in range(lm_cnt):
+
+            is_lm = y_coord[j,i*3+2]
+
+            if is_lm==-1:
+                y_map[j,:,:,i] = np.zeros((size,size))
+                # y_map[j,y,x,i]=1
+    y_map = np.round(y_map,4)
+    return y_map
+
 
 def set_y_center_map(df,scale = 1 , network_scale = 8):
     columns = df.columns
@@ -441,14 +468,14 @@ class data_stream:
             center_mini = set_y_center_map(df_mini , self.scale , 1)
 
             center_label_mini = set_y_center_map(df_mini , self.scale)
-
+            vis_mini = set_y_vis_map(df_mini)
         # print("X shape: ",x_mini.shape , "Y shape: " , y_mini.shape)
         # print("Coords shape: ",coords_mini.shape , "Map shape: " , center_mini.shape)
 
         self.start_idx += batch_size
 
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
+            return x_mini , y_mini, coords_mini,vis_mini,center_mini,center_label_mini
         else:
             return x_mini
 
@@ -469,11 +496,11 @@ class data_stream:
             coords_mini = set_y_coord(df_mini , 1 , True)
             center_mini = set_y_center_map(df_mini , self.scale , 1)
             center_label_mini = set_y_center_map(df_mini , self.scale)
-
+            vis_mini = set_y_vis_map(df_mini)
         self.start_idx += batch_size
 
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
+            return x_mini , y_mini, coords_mini,vis_mini,center_mini,center_label_mini
         else:
             return x_mini
         
@@ -496,11 +523,11 @@ class data_stream:
             coords_mini = set_y_coord(df_mini , 1 , True)
             center_mini = set_y_center_map(df_mini , self.scale , 1)
             center_label_mini = set_y_center_map(df_mini , self.scale)
-
+            vis_mini = set_y_vis_map(df_mini)
         self.start_idx += batch_size
         # print(x_mini.shape)
         if is_train:
-            return x_mini , y_mini, coords_mini,center_mini,center_label_mini
+            return x_mini , y_mini, coords_mini,vis_mini,center_mini,center_label_mini
         else:
             return x_mini
 
