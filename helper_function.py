@@ -10,8 +10,10 @@ from PIL import Image
 
 def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
     #show landmarks
+    fig  = plt.figure(figsize=(10,10))
     columns = df.columns
     l_m_columns = columns.drop(['image_id' , 'image_category'])
+    markersize = 12
     for col in l_m_columns:
         coord = df.loc[index,col]
         coord=coord.split('_')
@@ -21,9 +23,8 @@ def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
         if coord[0]!=-1:
             x=coord[0]/scale
             y=coord[1]/scale
-            plt.plot(x,y,'*',label=col)
+            plt.plot(x,y,'*',markersize = markersize)
             plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=12)
-            print(x,y)
             
     filepath = pre_dir+df.loc[index,'image_id']
     img =  Image.open(filepath)
@@ -32,6 +33,141 @@ def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
     height = int(height/scale)
     img = img.resize((width,height))
     plt.imshow(img)
+
+
+def show_im_coords_lms(df,index,scale=1 , pre_dir = 'train/'):
+    #show landmarks
+    fig  = plt.figure(figsize=(10,10))
+    columns = df.columns
+    l_m_columns = columns.drop(['image_id' , 'image_category'])
+    lm_cnt = int(l_m_columns.shape[0]/3)
+    markersize = 12
+    for i in np.arange(lm_cnt):
+        x = df.iloc[index , 2+i*3]
+        y = df.iloc[index , 3+i*3]
+        vis = df.iloc[index , 4+i*3]
+        if vis!=-1:
+            plt.plot(x,y,'*' , markersize=markersize)
+            plt.text(x * (1 + 0.01), y * (1 + 0.01) , l_m_columns[i*3], fontsize=15,color='blue',bbox=dict(facecolor='red', alpha=0.2))
+            
+    filepath = pre_dir+df.loc[index,'image_id']
+    img =  Image.open(filepath)
+    width, height =img.size
+    width = int(width/scale)
+    height = int(height/scale)
+    img = img.resize((width,height))
+    plt.imshow(img)
+    
+    
+def show_im_coords_lms_compare(df1 , df2, index_list ,scale=1 , pre_dir = 'train/'):     
+    columns = df1.columns
+    l_m_columns = columns.drop(['image_id' , 'image_category'])
+    lm_cnt = int(l_m_columns.shape[0]/3)
+    
+    #show landmarks
+    fig  = plt.figure(figsize=(20,10))    
+    nrows = 2
+    ncols = len(index_list)
+    markersize = 12
+    #loop through image to show
+    for idx , index in enumerate(index_list):
+        
+        plt.subplot(nrows,ncols,idx+1)
+        for i in np.arange(lm_cnt):
+            x = df1.iloc[index , 2+i*3]
+            y = df1.iloc[index , 3+i*3]
+            vis = df1.iloc[index , 4+i*3]
+            if vis!=-1:
+                plt.plot(x,y,'*' , markersize=markersize )
+#                 plt.text(x * (1 + 0.01), y * (1 + 0.01) , l_m_columns[i*3], fontsize=15,color='blue',bbox=dict(facecolor='red', alpha=0.2))
+
+        filepath = pre_dir+df1.loc[index,'image_id']
+        img =  Image.open(filepath)
+        width, height =img.size
+        width = int(width/scale)
+        height = int(height/scale)
+        img = img.resize((width,height))
+        plt.imshow(img)
+
+
+        plt.subplot(nrows,ncols,idx+1+ncols)
+
+        for i in np.arange(lm_cnt):
+            x = df2.iloc[index , 2+i*3]
+            y = df2.iloc[index , 3+i*3]
+            vis = df2.iloc[index , 4+i*3]
+            if vis!=-1:
+                plt.plot(x,y,'*' , markersize=markersize)
+#                 plt.text(x * (1 + 0.01), y * (1 + 0.01) , l_m_columns[i*3], fontsize=10,color='blue',bbox=dict(facecolor='red', alpha=0.2))
+
+        filepath = pre_dir+df2.loc[index,'image_id']
+        img =  Image.open(filepath)
+        width, height =img.size
+        width = int(width/scale)
+        height = int(height/scale)
+        img = img.resize((width,height))
+        plt.imshow(img)
+        
+        
+# show image with origin     
+def show_im_lms_compare(df1 , df2, index_list ,scale=1 , pre_dir = 'train/'):     
+    columns = df1.columns
+    l_m_columns = columns.drop(['image_id' , 'image_category'])
+    lm_cnt = int(l_m_columns.shape[0]/3)
+    
+    #show landmarks
+    fig  = plt.figure(figsize=(20,10))    
+    nrows = 2
+    ncols = len(index_list)
+    markersize = 12
+    #loop through image to show
+    for idx , index in enumerate(index_list):
+        
+        plt.subplot(nrows,ncols,idx+1)
+        for col in l_m_columns:
+            coord = df1.loc[index,col]
+            coord=coord.split('_')
+            #change the string into integer
+            coord = list(map(float, coord))
+
+            if coord[0]!=-1:
+                x=coord[0]/scale
+                y=coord[1]/scale
+                plt.plot(x,y,'*',label=col)
+                plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=12)
+                # print(x,y)
+
+        filepath = pre_dir+df1.loc[index,'image_id']
+        img =  Image.open(filepath)
+        width, height =img.size
+        width = int(width/scale)
+        height = int(height/scale)
+        img = img.resize((width,height))
+        plt.imshow(img)
+
+
+        plt.subplot(nrows,ncols,idx+1+ncols)
+
+        for col in l_m_columns:
+            coord = df2.loc[index,col]
+            coord=coord.split('_')
+            #change the string into integer
+            coord = list(map(float, coord))
+
+            if coord[0]!=-1:
+                x=coord[0]/scale
+                y=coord[1]/scale
+                plt.plot(x,y,'*',label=col)
+                plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=12)
+                # print(x,y)
+
+        filepath = pre_dir+df2.loc[index,'image_id']
+        img =  Image.open(filepath)
+        width, height =img.size
+        width = int(width/scale)
+        height = int(height/scale)
+        img = img.resize((width,height))
+        plt.imshow(img)
     
 def make_small_df(df , size =99):
     category_size = {}
