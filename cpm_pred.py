@@ -39,6 +39,9 @@ class Config():
         
         self.learning_rate = learning_rate
                 #file path
+                        #Regularzation:
+        self.lambda_l2 = 0.0
+        self.keep_prob = 1.0  
         self.logdir =  os.path.join(self.pre_path+"/log/train_log/CPM/", category , str(self.learning_rate))
         self.params_dir = self.pre_path+"/params/CPM/" + category + "/"
     # =================== modify parameters ==================
@@ -109,22 +112,23 @@ config = Config(category_name,imsize,0.1)
 config.points_num = categories.get_cate_lm_cnts(category_name)
 print("land mark point : {}".format(config.points_num))
 
-pre_path = "./test_pad/"
-file_name = "~/fashion/test_pad/test_"+category_name+".csv"
-ckpt_file_name = "/data/bop16yh/fashion/params/CPM/trousers/cpm_trousers.ckpt"
-
-out_data_folder = "/data/bop16yh/fashion/result/"
+pre_path = "./testb_pad/"
+file_name = pre_path +"test_"+category_name+".csv"
+ckpt_file_name = "./params/CPM/{}/cpm_{}.ckpt-50000".format(category_name,category_name)
+ckpt_file_name = "./params/CPM/" + category_name +"/l2_0.001_drop_0.5/cpm_"+category_name+".ckpt-30000"
+out_data_folder = "./output_b/"
 if not os.path.exists(out_data_folder):
     os.makedirs(out_data_folder)
 out_data_path = out_data_folder+"cpm_"+category_name+"_"+str(imsize)+".csv"
 
 print("read data from: "+file_name)
+print("read checkpoint from: "+ckpt_file_name)
 
 df = pd.read_csv(file_name)
 if total_size>-1:
     df = df[:total_size]
 pred_df = df[["image_id","image_category"]]
-input_data = train_input.data_stream(df,config.batch_size,is_train=False,scale = scale ,pre_path ="./test_pad/")
+input_data = train_input.data_stream(df,config.batch_size,is_train=False,scale = scale ,pre_path =pre_path)
 
 
 tf.reset_default_graph()
@@ -136,6 +140,9 @@ saver = tf.train.Saver(tf.trainable_variables())
 
 init_op = tf.global_variables_initializer()
 
+config_cpu = tf.ConfigProto(
+        device_count = {'GPU': 0}
+    )
 
 with tf.Session() as sess:
     sess.run(init_op)
@@ -173,14 +180,14 @@ cnt_size = result.shape[3]
 
 output_result = np.ones((df_size,cnt_size*3))
 
-scale = (512/(imsize/8-1))
+scale = (512/(imsize/8))
 
 for i in range(df_size):
     for j in range(cnt_size):
         heat_map = result[i,:,:,j]
         map_shape = np.unravel_index(np.argmax(heat_map, axis=None), heat_map.shape)
-        x = map_shape[1]+1
-        y = map_shape[0]+1
+        x = map_shape[1]
+        y = map_shape[0]
         output_result[i,j*3+0] = x*scale
         output_result[i,j*3+1] = y*scale
 output_result = output_result.astype(int)

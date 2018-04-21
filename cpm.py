@@ -291,8 +291,8 @@ class CPM:
                 # self.global_step = tf.get_vari(0, trainable=False, name="global_step")
         self.global_step = tf.get_variable("global_step", initializer=0,
                     dtype=tf.int32, trainable=False)
-        self.learning_rate =config.learning_rate
-        # self.wd = config.wd
+        self.start_learning_rate =config.learning_rate
+        self.lambda_l2 = config.lambda_l2
         # self.stddev = config.stddev
         self.batch_size = config.batch_size
         # self.use_fp16 = config.use_fp16
@@ -322,10 +322,14 @@ class CPM:
         self.coords = tf.placeholder(
                 dtype = tf.float32,
                 shape = (self.batch_size, self.points_num * 2))
+        self.vis_mask = tf.placeholder(
+                dtype = tf.float32,
+                shape = (self.batch_size, self.fm_height, self.fm_width, self.points_num))
         self.pred_images = tf.placeholder(
                 dtype = tf.float32,
                 shape = (None, config.img_height, config.img_width, 3)
                 )
+        self.keep_prob = tf.placeholder(tf.float32)
 
     def inference_pose_v3(self,is_train=True ):
         lm_cnt = self.points_num
@@ -481,11 +485,16 @@ class CPM:
 
 
         # print(tf.get_collection('losses'))
-        return tf.add_n(tf.get_collection('losses'), name = "total_loss")
+
+        return tf.add( tf.add_n(tf.get_collection('losses')) , tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)), name = "total_loss")
 
     def add_to_euclidean_loss(self, batch_size, predicts, labels, name):
-        flatten_labels = tf.reshape(labels, [batch_size, -1])
-        flatten_predicts = tf.reshape(predicts, [batch_size, -1])
+        #not landmark than don't add
+        flatten_vis = tf.reshape(self.vis_mask, [batch_size, -1])
+        flatten_labels = tf.multiply( tf.reshape(labels, [batch_size, -1]) ,flatten_vis)
+        flatten_predicts = tf.multiply(tf.reshape(predicts, [batch_size, -1]) , flatten_vis)
+        # flatten_labels = tf.reshape(labels, [batch_size, -1])
+        # flatten_predicts = tf.reshape(predicts, [batch_size, -1])
         # print(flatten_labels , flatten_predicts)
         with tf.name_scope(name) as scope:
             euclidean_loss = tf.sqrt(tf.reduce_sum(
@@ -502,19 +511,28 @@ class CPM:
         # optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         # train_op = optimizer.minimize(total_loss)
 
+        # optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        # grads = optimizer.compute_gradients(total_loss)
+
+        # apply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
+
+        # variable_averages = tf.train.ExponentialMovingAverage(
+        #         self.moving_average_decay, global_step)
+        # variable_averages_op = variable_averages.apply(tf.trainable_variables())
+
+        # with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
+        #     train_op = tf.no_op(name = "train")
+
+
+        self.learning_rate = tf.train.exponential_decay(self.start_learning_rate, global_step,
+                                                   5000, 0.5, staircase=True)
+
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         grads = optimizer.compute_gradients(total_loss)
 
-        apply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
+        apply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)    
 
-        variable_averages = tf.train.ExponentialMovingAverage(
-                self.moving_average_decay, global_step)
-        variable_averages_op = variable_averages.apply(tf.trainable_variables())
-
-        with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
-            train_op = tf.no_op(name = "train")
-
-        return train_op
+        return apply_gradient_op
 
 
     def train_op_fine_tune(self, total_loss,var_list):
@@ -523,7 +541,7 @@ class CPM:
         # optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         # train_op = optimizer.minimize(total_loss)
 
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.start_learning_rate)
         train_op = optimizer.minimize(total_loss, var_list=var_list)
         return train_op
 
@@ -915,5 +933,145 @@ class CPM:
             self.add_to_euclidean_loss(self.batch_size, Mconv7_stage4, self.labels, 'st')
             self.add_to_euclidean_loss(self.batch_size, Mconv7_stage5, self.labels, 'st')
             self.add_to_euclidean_loss(self.batch_size, Mconv7_stage6, self.labels, 'st')
+        self._fm_summary(Mconv7_stage6)
+        return Mconv7_stage6
+
+
+    def inference_pose_vgg_l2(self, is_train=True):
+      # corresponds to pose_deploy_resize.prototxt
+        center_map = self.center_map
+        lm_cnt = self.points_num
+        if is_train:
+            image = self.images
+        else:
+            image = self.pred_images
+        with tf.variable_scope('PoseNet'):
+            print("lambda : {} keep prob: {} ".format(self.lambda_l2 , self.keep_prob))
+            regularizer = tf.contrib.layers.l2_regularizer(scale=0.0005)
+            # pool_center_lower = layers.avg_pool2d(center_map, 9, 8, padding='SAME')
+            conv1_1 = layers.conv2d(image, 64, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv1_1')
+            conv1_1 = tf.nn.relu(conv1_1)
+            conv1_2 = layers.conv2d(conv1_1, 64, 3, 1, weights_regularizer=regularizer,activation_fn=None, scope='conv1_2')
+            conv1_2 = tf.nn.relu(conv1_2)
+            # return conv1_2
+            pool1_stage1 = layers.max_pool2d(conv1_2, 2, 2)
+            conv2_1 = layers.conv2d(pool1_stage1, 128, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv2_1')
+            conv2_1 = tf.nn.relu(conv2_1)
+            conv2_2 = layers.conv2d(conv2_1, 128, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv2_2')
+            conv2_2 = tf.nn.relu(conv2_2)
+            pool2_stage1 = layers.max_pool2d(conv2_2, 2, 2)
+            conv3_1 = layers.conv2d(pool2_stage1, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv3_1')
+            conv3_1 = tf.nn.relu(conv3_1)
+            conv3_2 = layers.conv2d(conv3_1, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv3_2')
+            conv3_2 = tf.nn.relu(conv3_2)
+            conv3_3 = layers.conv2d(conv3_2, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv3_3')
+            conv3_3 = tf.nn.relu(conv3_3)
+            conv3_4 = layers.conv2d(conv3_3, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv3_4')
+            conv3_4 = tf.nn.relu(conv3_4)
+            pool3_stage1 = layers.max_pool2d(conv3_4, 2, 2)
+            conv4_1 = layers.conv2d(pool3_stage1, 512, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_1')
+            conv4_1 = tf.nn.relu(conv4_1)
+            conv4_2 = layers.conv2d(conv4_1, 512, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_2')
+            conv4_2 = tf.nn.relu(conv4_2)
+            conv4_3_CPM = layers.conv2d(conv4_2, 256, 3, 1, activation_fn=None, scope='conv4_3_CPM')
+            conv4_3_CPM = tf.nn.relu(conv4_3_CPM)
+            conv4_4_CPM = layers.conv2d(conv4_3_CPM, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_4_CPM')
+            conv4_4_CPM = tf.nn.relu(conv4_4_CPM)
+            conv4_5_CPM = layers.conv2d(conv4_4_CPM, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_5_CPM')
+            conv4_5_CPM = tf.nn.relu(conv4_5_CPM)
+            conv4_6_CPM = layers.conv2d(conv4_5_CPM, 256, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_6_CPM')
+            conv4_6_CPM = tf.nn.relu(conv4_6_CPM)
+            conv4_7_CPM = layers.conv2d(conv4_6_CPM, 128, 3, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv4_7_CPM')
+            conv4_7_CPM = tf.nn.relu(conv4_7_CPM)
+            conv5_1_CPM = layers.conv2d(conv4_7_CPM, 512, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv5_1_CPM')
+            conv5_1_CPM = tf.nn.relu(conv5_1_CPM)
+            conv5_1_CPM = tf.nn.dropout(conv5_1_CPM, self.keep_prob)
+            conv5_2_CPM = layers.conv2d(conv5_1_CPM, lm_cnt, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='conv5_2_CPM')
+            concat_stage2 = tf.concat(axis=3, values=[conv5_2_CPM, conv4_7_CPM])
+            Mconv1_stage2 = layers.conv2d(concat_stage2, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv1_stage2')
+            Mconv1_stage2 = tf.nn.relu(Mconv1_stage2)
+            Mconv2_stage2 = layers.conv2d(Mconv1_stage2, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv2_stage2')
+            Mconv2_stage2 = tf.nn.relu(Mconv2_stage2)
+            Mconv3_stage2 = layers.conv2d(Mconv2_stage2, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv3_stage2')
+            Mconv3_stage2 = tf.nn.relu(Mconv3_stage2)
+            Mconv4_stage2 = layers.conv2d(Mconv3_stage2, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv4_stage2')
+            Mconv4_stage2 = tf.nn.relu(Mconv4_stage2)
+            Mconv5_stage2 = layers.conv2d(Mconv4_stage2, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv5_stage2')
+            Mconv5_stage2 = tf.nn.relu(Mconv5_stage2)
+            Mconv6_stage2 = layers.conv2d(Mconv5_stage2, 128, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv6_stage2')
+            Mconv6_stage2 = tf.nn.relu(Mconv6_stage2)
+            Mconv6_stage2 = tf.nn.dropout(Mconv6_stage2, self.keep_prob)
+            Mconv7_stage2 = layers.conv2d(Mconv6_stage2, lm_cnt, 1, 1, weights_regularizer=regularizer,activation_fn=None, scope='Mconv7_stage2')
+            concat_stage3 = tf.concat(axis=3, values=[Mconv7_stage2, conv4_7_CPM])
+            Mconv1_stage3 = layers.conv2d(concat_stage3, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv1_stage3')
+            Mconv1_stage3 = tf.nn.relu(Mconv1_stage3)
+            Mconv2_stage3 = layers.conv2d(Mconv1_stage3, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv2_stage3')
+            Mconv2_stage3 = tf.nn.relu(Mconv2_stage3)
+            Mconv3_stage3 = layers.conv2d(Mconv2_stage3, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv3_stage3')
+            Mconv3_stage3 = tf.nn.relu(Mconv3_stage3)
+            Mconv4_stage3 = layers.conv2d(Mconv3_stage3, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv4_stage3')
+            Mconv4_stage3 = tf.nn.relu(Mconv4_stage3)
+            Mconv5_stage3 = layers.conv2d(Mconv4_stage3, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv5_stage3')
+            Mconv5_stage3 = tf.nn.relu(Mconv5_stage3)
+            Mconv6_stage3 = layers.conv2d(Mconv5_stage3, 128, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv6_stage3')
+            Mconv6_stage3 = tf.nn.relu(Mconv6_stage3)
+            Mconv6_stage3 = tf.nn.dropout(Mconv6_stage3, self.keep_prob)
+            Mconv7_stage3 = layers.conv2d(Mconv6_stage3, lm_cnt, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv7_stage3')
+            concat_stage4 = tf.concat(axis=3, values=[Mconv7_stage3, conv4_7_CPM])
+            Mconv1_stage4 = layers.conv2d(concat_stage4, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv1_stage4')
+            Mconv1_stage4 = tf.nn.relu(Mconv1_stage4)
+            Mconv2_stage4 = layers.conv2d(Mconv1_stage4, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv2_stage4')
+            Mconv2_stage4 = tf.nn.relu(Mconv2_stage4)
+            Mconv3_stage4 = layers.conv2d(Mconv2_stage4, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv3_stage4')
+            Mconv3_stage4 = tf.nn.relu(Mconv3_stage4)
+            Mconv4_stage4 = layers.conv2d(Mconv3_stage4, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv4_stage4')
+            Mconv4_stage4 = tf.nn.relu(Mconv4_stage4)
+            Mconv5_stage4 = layers.conv2d(Mconv4_stage4, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv5_stage4')
+            Mconv5_stage4 = tf.nn.relu(Mconv5_stage4)
+            Mconv6_stage4 = layers.conv2d(Mconv5_stage4, 128, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv6_stage4')
+            Mconv6_stage4 = tf.nn.relu(Mconv6_stage4)
+            Mconv6_stage4 = tf.nn.dropout(Mconv6_stage4, self.keep_prob)
+            Mconv7_stage4 = layers.conv2d(Mconv6_stage4, lm_cnt, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv7_stage4')
+            concat_stage5 = tf.concat(axis=3, values=[Mconv7_stage4, conv4_7_CPM])
+            Mconv1_stage5 = layers.conv2d(concat_stage5, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv1_stage5')
+            Mconv1_stage5 = tf.nn.relu(Mconv1_stage5)
+            Mconv2_stage5 = layers.conv2d(Mconv1_stage5, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv2_stage5')
+            Mconv2_stage5 = tf.nn.relu(Mconv2_stage5)
+            Mconv3_stage5 = layers.conv2d(Mconv2_stage5, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv3_stage5')
+            Mconv3_stage5 = tf.nn.relu(Mconv3_stage5)
+            Mconv4_stage5 = layers.conv2d(Mconv3_stage5, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv4_stage5')
+            Mconv4_stage5 = tf.nn.relu(Mconv4_stage5)
+            Mconv5_stage5 = layers.conv2d(Mconv4_stage5, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv5_stage5')
+            Mconv5_stage5 = tf.nn.relu(Mconv5_stage5)
+            Mconv6_stage5 = layers.conv2d(Mconv5_stage5, 128, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv6_stage5')
+            Mconv6_stage5 = tf.nn.relu(Mconv6_stage5)
+            Mconv6_stage5 = tf.nn.dropout(Mconv6_stage5, self.keep_prob)
+            Mconv7_stage5 = layers.conv2d(Mconv6_stage5, lm_cnt, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv7_stage5')
+            concat_stage6 = tf.concat(axis=3, values=[Mconv7_stage5, conv4_7_CPM])
+            Mconv1_stage6 = layers.conv2d(concat_stage6, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv1_stage6')
+            Mconv1_stage6 = tf.nn.relu(Mconv1_stage6)
+            Mconv2_stage6 = layers.conv2d(Mconv1_stage6, 128, 7, 1, weights_regularizer=regularizer,activation_fn=None, scope='Mconv2_stage6')
+            Mconv2_stage6 = tf.nn.relu(Mconv2_stage6)
+            Mconv3_stage6 = layers.conv2d(Mconv2_stage6, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv3_stage6')
+            Mconv3_stage6 = tf.nn.relu(Mconv3_stage6)
+            Mconv4_stage6 = layers.conv2d(Mconv3_stage6, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv4_stage6')
+            Mconv4_stage6 = tf.nn.relu(Mconv4_stage6)
+            Mconv5_stage6 = layers.conv2d(Mconv4_stage6, 128, 7, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv5_stage6')
+            Mconv5_stage6 = tf.nn.relu(Mconv5_stage6)
+            Mconv6_stage6 = layers.conv2d(Mconv5_stage6, 128, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv6_stage6')
+            Mconv6_stage6 = tf.nn.relu(Mconv6_stage6)
+            Mconv6_stage6 = tf.nn.dropout(Mconv6_stage6, self.keep_prob)
+            Mconv7_stage6 = layers.conv2d(Mconv6_stage6, lm_cnt, 1, 1,weights_regularizer=regularizer, activation_fn=None, scope='Mconv7_stage6')
+            # print(conv5_2_CPM)
+            # print(Mconv7_stage6)
+            # print(self.labels)
+            if is_train:
+                self.add_to_euclidean_loss(self.batch_size, conv5_2_CPM, self.labels, 'st')
+                self.add_to_euclidean_loss(self.batch_size, Mconv7_stage2, self.labels, 'st')
+                self.add_to_euclidean_loss(self.batch_size, Mconv7_stage3, self.labels, 'st')
+                self.add_to_euclidean_loss(self.batch_size, Mconv7_stage4, self.labels, 'st')
+                self.add_to_euclidean_loss(self.batch_size, Mconv7_stage5, self.labels, 'st')
+                self.add_to_euclidean_loss(self.batch_size, Mconv7_stage6, self.labels, 'st')
+        # self.add_to_accuracy(Mconv7_stage6)
         self._fm_summary(Mconv7_stage6)
         return Mconv7_stage6
