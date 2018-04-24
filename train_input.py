@@ -91,22 +91,26 @@ def set_y_coord(df,scale = 1,coord_only = False):
     l_m_index = np.append(np.arange(0,y_coord.shape[1],3), np.arange(1,y_coord.shape[1],3) )
 
     l_m_index = np.sort(l_m_index)
+
+
+
     vis_index = np.arange(2,y_coord.shape[1],3)
 
     
     # Whether has landmark point
     has_lm_data = y_coord[:,vis_index]
-    has_lm_data[has_lm_data==0]=1
-    has_lm_data[has_lm_data==-1]=0
+    # has_lm_data[has_lm_data==0]=1
+    # has_lm_data[has_lm_data==-1]=0
 
-    # Whether is visible
-    is_vis_data = y_coord[:,vis_index]
-    is_vis_data[np.logical_or( is_vis_data ==-1 , is_vis_data==0 )]=0
+    # # Whether is visible
+    # is_vis_data = y_coord[:,vis_index]
+    # is_vis_data[np.logical_or( is_vis_data ==-1 , is_vis_data==0 )]=0
     
     if coord_only:
         return y_coord[:,l_m_index]
-    return_array = np.concatenate((y_coord[:,l_m_index],has_lm_data , is_vis_data),axis=1)
-    return return_array
+    # return_array = np.concatenate((y_coord[:,l_m_index],has_lm_data),axis=1)
+    # print(y_coord)
+    return y_coord
     #x1,y1 ... xn, yn
     #lm_1 ... lm_n
     #vis_1 ... vis_n
@@ -434,6 +438,8 @@ class data_stream:
 
 
         self.start_idx =0
+
+        # np.random.seed(10)
         self.indices = np.arange(self.df_size)
         np.random.shuffle(self.indices)
 
@@ -441,7 +447,11 @@ class data_stream:
         print("\tData shape: {}\n\tbatch_size:{}"\
             .format(self.df_size, self.batch_size))
 
-
+    def init():
+        self.start_idx = 0 
+        # np.random.seed(10)
+        self.indices = np.arange(self.df_size)
+        np.random.shuffle(self.indices)
     
     def get_next_batch(self):
         batch_size = self.batch_size
@@ -451,6 +461,7 @@ class data_stream:
         
         if self.start_idx >= (df_size - batch_size+1):
             self.start_idx = 0 
+            # np.random.seed(10)
             self.indices = np.arange(self.df_size)
             np.random.shuffle(self.indices)
 
