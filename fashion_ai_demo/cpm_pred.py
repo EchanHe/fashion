@@ -13,26 +13,32 @@ import pandas as pd
 
 import sys
 import os
-
+import argparse
 
 import train_input
 import cpm
-from scipy.ndimage import gaussian_filter
 import sys
 
+util_folder_name = 'util'
+image_folder_name = 'test_pad'
+result_foler_name = 'result'
+
 dirname = os.path.dirname(__file__)
-absdir =  os.path.abspath(dirname)
-sys.path.append(os.path.join(dirname, '../util'))
+#根目录变量 rootdir
+rootdir = os.path.abspath(dirname)
+
+sys.path.append(os.path.join(rootdir, util_folder_name))
 import categories
 
 
-import argparse
+
 parser = argparse.ArgumentParser()
 parser.add_argument("cate", choices=["blouse" ,"outwear","trousers","skirt","dress" ],
                     help="The clothes category")
-parser.add_argument("imsize", choices=["128","256","512" ],
+parser.add_argument("--imsize", default = "512", choices=["128","256","512" ], 
                     help="Image size for training")
-parser.add_argument("total_size", type = int,help="Training set size")
+parser.add_argument("total_size", type = int, 
+                    help="Training set size")
 parser.add_argument("-l", "--learning_rate", type=float, default =1e-04,        
                     help="learning rate")
 parser.add_argument("-l2","--lambda_l2", type=float, default = 0.001  ,
@@ -45,7 +51,7 @@ class Config():
     训练模型的配置类
     """
     def __init__(self,category,imsize , learning_rate, lambda_l2=0.0 , keep_prob = 1.0):
-        self.pre_path = os.path.join(dirname , "../")
+        self.pre_path = os.path.join(rootdir , "./")
         self.category = category
         self.img_height = imsize
         self.img_width = imsize
@@ -101,9 +107,9 @@ config = Config(category_name,imsize,l,lambda_l2,keep_prob)
 config.points_num = categories.get_cate_lm_cnts(category_name)
 # print("land mark point : {}".format(config.points_num))
 
-pre_path = "./test_pad/"
+img_path = image_folder_name
 
-file_name = os.path.abspath(os.path.join(absdir , "../test_pad/test_"+category_name+".csv"))
+file_name = os.path.abspath(os.path.join(absdir , "/test_pad/test_"+category_name+".csv"))
 
 
 
@@ -111,9 +117,14 @@ df = pd.read_csv(file_name)
 if total_size>-1:
     df = df[:total_size]
 pred_df = df[["image_id","image_category"]]
-input_data = train_input.data_stream(df,config.batch_size,is_train=False,scale =  int(512/imsize) ,pre_path ="./test_pad/")
+input_data = train_input.data_stream(df,config.batch_size,is_train=False,scale = int(512/imsize) ,pre_path = img_path )
 
-print("read data from: "+file_name)
+print("Arguments: " + str(args))
+print("read test data from: " + img_path)
+print("Images in folder: "+ img_path)
+print("Checkpoint file from: {}".format(config.load_filename))
+
+
 ##模型###
 model = cpm.CPM(config)
 predict = model.inference_pose_vgg(is_train=False)
@@ -147,7 +158,7 @@ with tf.Session() as sess:
         print(result.shape)
 
 
-out_data_folder = os.path.abspath(os.path.join(absdir , "../result"))
+out_data_folder = os.path.abspath(os.path.join(absdir , result_foler_name))
 if not os.path.exists(out_data_folder):
     os.makedirs(out_data_folder)
 out_data_path = out_data_folder+"/cpm_"+category_name+"_"+str(imsize)+".csv"

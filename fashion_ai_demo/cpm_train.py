@@ -13,23 +13,31 @@ import pandas as pd
 
 import sys
 import os
+import argparse
 
 import train_input
 import cpm
 
+util_folder_name = 'util'
+image_folder_name = 'test'
 
 dirname = os.path.dirname(__file__)
-absdir =  os.path.abspath(dirname)
-sys.path.append(os.path.join(dirname, '../util'))
+#根目录变量 rootdir
+rootdir = os.path.abspath(dirname)
+
+sys.path.append(os.path.join(rootdir, util_folder_name))
+# print(os.path.join(rootdir, 'util'))
 import categories
 
-import argparse
+#命令行参数设置
+
 parser = argparse.ArgumentParser()
 parser.add_argument("cate", choices=["blouse" ,"outwear","trousers","skirt","dress" ],
                     help="The clothes category")
-parser.add_argument("imsize", choices=["128","256","512" ],
+parser.add_argument("--imsize", default = "512", choices=["128","256","512" ], 
                     help="Image size for training")
-parser.add_argument("total_size", type = int,help="Training set size")
+parser.add_argument("total_size", type = int, 
+                    help="Training set size")
 parser.add_argument("-l", "--learning_rate", type=float, default =1e-04,        
                     help="learning rate")
 parser.add_argument("-l2","--lambda_l2", type=float, default = 0.001  ,
@@ -73,7 +81,7 @@ class Config():
     """
     
     def __init__(self,category,imsize , learning_rate, lambda_l2=0.0 , keep_prob = 1.0):
-        self.pre_path = os.path.join(dirname , "../")
+        self.pre_path = os.path.join(rootdir , "./")
         self.category = category
         self.img_height = imsize
         self.img_width = imsize
@@ -119,7 +127,7 @@ class Config():
 
 #命令行参数赋值 配置类
 args = parser.parse_args()
-print(args)
+
 
 l = args.learning_rate
 lambda_l2 = args.lambda_l2
@@ -133,9 +141,9 @@ config = Config(category_name,imsize,l,lambda_l2,keep_prob)
 config.points_num = categories.get_cate_lm_cnts(category_name)
 
 
-img_path = os.path.join(absdir ,"../train_pad/")
+img_path = os.path.join(rootdir ,image_folder_name)
 
-file_name = os.path.join(absdir , "../train_pad/Annotations/train_"+category_name+"_coord.csv")
+file_name = os.path.join(rootdir , "train_pad/Annotations/train_"+category_name+"_coord.csv")
 
 df = pd.read_csv(file_name)
 if total_size>-1:
@@ -144,15 +152,17 @@ input_data = train_input.data_stream(df,config.batch_size,is_train=True , pre_pa
 
 ##validation Set
 ##要改validdation 的文件
-valid_file_name = os.path.join(absdir , "../train_pad/Annotations/train_"+category_name+"_coord.csv")
+valid_file_name = os.path.join(rootdir , "train_pad/Annotations/train_"+category_name+"_coord.csv")
 df_valid = pd.read_csv(valid_file_name)
 valid_data = train_input.data_stream(df_valid,config.batch_size,is_train=True , pre_path = img_path)
 
+print("Arguments: " + str(args))
 print("steps: {}\nlearning rates: {}".format(config.max_iteration ,config.learning_rate))
 print("read train data from: "+os.path.abspath(file_name))
 print("read validation data from: "+os.path.abspath(valid_file_name))
-print("====RETRAIN ?: {}==== \n  Checkpoint file from: {}".format(not config.initialize,config.load_filename))
-print("==========lambda: {}   drop: {}========".format(config.lambda_l2 , config.keep_prob))
+print("Images in folder: "+ img_path)
+print("==RETRAIN ?: {}==\n\tCheckpoint file from: {}".format(not config.initialize,config.load_filename))
+print("========Leanring Rate: {} lambda: {} drop: {}========".format(config.learning_rate,config.lambda_l2 , config.keep_prob))
 
 
 ###模型####
