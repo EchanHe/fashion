@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from PIL import Image
+import os
 # import pillow
 
 #helper function:
@@ -34,6 +35,78 @@ def show_im_lms(df,index,scale=1 , pre_dir = 'train/'):
     img = img.resize((width,height))
     plt.imshow(img)
 
+
+def save_im_lms(df,index,scale=1 , pre_dir = 'train/'):
+    #show landmarks
+    fig  = plt.figure(figsize=(10,10))
+    columns = df.columns
+    l_m_columns = columns.drop(['image_id' , 'image_category'])
+    markersize = 12
+    for col in l_m_columns:
+        coord = df.loc[index,col]
+        coord=coord.split('_')
+        #change the string into integer
+        coord = list(map(float, coord))
+
+        if coord[0]!=-1:
+            x=coord[0]/scale
+            y=coord[1]/scale
+            plt.plot(x,y,'*',markersize = markersize)
+            plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=12)
+            
+    filepath = pre_dir+df.loc[index,'image_id']
+    img =  Image.open(filepath)
+    width, height =img.size
+    width = int(width/scale)
+    height = int(height/scale)
+    img = img.resize((width,height))
+    plt.imshow(img)
+    fig.savefig('foo.png')
+
+
+def save_multi_im_lms(df , scale=1 , pre_dir = 'train/'):     
+    columns = df.columns
+    l_m_columns = columns.drop(['image_id' , 'image_category'])
+    lm_cnt = int(l_m_columns.shape[0]/3)
+    
+    #show landmarks
+    
+    nrows = 2
+    ncols =5
+    markersize = 30
+    #loop through image to show
+    for i in np.arange(0,df.shape[0],10):
+        print(i)
+        fig  = plt.figure(figsize=(100,40))    
+        df1 = df[i:i+10]
+        for idx,row in df1.iterrows():
+            
+            plt.subplot(nrows,ncols,idx+1-i)
+            for col in l_m_columns:
+                coord = row[col]
+                coord=coord.split('_')
+                #change the string into integer
+                coord = list(map(float, coord))
+
+                if coord[0]!=-1:
+                    x=coord[0]/scale
+                    y=coord[1]/scale
+                    plt.plot(x,y,'*',label=col,markersize=markersize)
+                    plt.text(x * (1 + 0.01), y * (1 + 0.01) , col, fontsize=30,color='blue',bbox=dict(facecolor='red', alpha=0.2))
+                    # print(x,y)
+
+            filepath = pre_dir+row['image_id']
+            plt.title(row['image_id']+"\n"+str(idx),fontsize=40)
+            img =  Image.open(filepath)
+            width, height =img.size
+            width = int(width/scale)
+            height = int(height/scale)
+            img = img.resize((width,height))
+            plt.imshow(img)
+        if not os.path.exists(pre_dir+"result/"):
+            os.makedirs(pre_dir+"result/")
+        fig.savefig(pre_dir+"result/"+str(i)+".jpg")
+        plt.close()
 
 def show_im_coords_lms(df,index,scale=1 , pre_dir = 'train/'):
     #show landmarks
