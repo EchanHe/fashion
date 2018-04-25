@@ -1,0 +1,21 @@
+#ignore image folders
+
+a.jpg
+train
+train_pad
+test
+test_pad
+params
+train_warm*
+conv*
+
+submit
+log
+fashion_ai_demo/train_pad
+fashion_ai_demo/test_pad
+fashion_ai_demo/util/__pycache__
+fashion_ai_demo/__pycache__
+fashion_ai_demo/test_code/__pycache__
+fashion_ai_demo/train_code/__pycache__
+test_path.py
+*.ckpt
