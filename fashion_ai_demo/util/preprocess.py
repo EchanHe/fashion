@@ -42,7 +42,7 @@ def pad_images(df,im_size = 512  ,is_train=True, arg_path=""):
         output_path = pre_path[:-1]+"_pad/"
         output_anno_path = os.path.join(output_path , "Annotations" )
         if not os.path.exists(output_anno_path):
-            print("create folder: " + output_anno_path)
+            print("create folder: " + os.path.abspath(output_anno_path))
             os.makedirs(output_anno_path)
     else:
         test_offset_df = pd.DataFrame(columns=['image_id' , 'image_category','width','height'])
@@ -54,7 +54,7 @@ def pad_images(df,im_size = 512  ,is_train=True, arg_path=""):
         output_path_cate = os.path.join(output_path , "Images" , cate)
         
         if not os.path.exists(output_path_cate):
-            print("create folder: " + output_path_cate)
+            print("create folder: " + os.path.abspath(output_path_cate))
             os.makedirs(output_path_cate)
 
 
