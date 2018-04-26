@@ -13,6 +13,7 @@ submit
 log
 fashion_ai_demo/train_pad
 fashion_ai_demo/test_pad
+fashion_ai_demo/valid_pad
 fashion_ai_demo/util/__pycache__
 fashion_ai_demo/__pycache__
 fashion_ai_demo/test_code/__pycache__

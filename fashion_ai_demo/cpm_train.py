@@ -6,8 +6,7 @@ import tensorflow as tf
 
 slim = tf.contrib.slim
 
-# import vgg
-# import vgg16_coord_model as model
+
 import numpy as np
 import pandas as pd
 
@@ -15,19 +14,21 @@ import sys
 import os
 import argparse
 
-import train_input
-import cpm
 
 util_folder_name = 'util'
-image_folder_name = 'test'
+model_folder_name = 'model'
+image_folder_name = 'train_pad/'
+valid_image_folder_name = 'valid_pad/'
 
 dirname = os.path.dirname(__file__)
 #根目录变量 rootdir
-rootdir = os.path.abspath(dirname)
-
+# rootdir = os.path.abspath(dirname)
+rootdir = os.path.abspath(os.path.join(dirname,".."))
 sys.path.append(os.path.join(rootdir, util_folder_name))
-# print(os.path.join(rootdir, 'util'))
+sys.path.append(os.path.join(rootdir, model_folder_name))
 import categories
+import train_input
+import cpm
 
 #命令行参数设置
 
@@ -114,7 +115,7 @@ class Config():
     max_iteration = 101
     checkpoint_iters = 50
     summary_iters = 10
-    validate_iters = 4000
+    validate_iters = 100
     
     
 

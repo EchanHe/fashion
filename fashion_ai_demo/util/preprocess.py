@@ -20,7 +20,7 @@ def pad_img(np_img , size = 512):
     
     return img_pad,left,up
 
-def pad_images(df,im_size = 512  ,is_train=True):
+def pad_images(df,im_size = 512  ,is_train=True, arg_path=""):
     """ 将size 小于 512 的图片 Pad 为 512 *512
     输入： 
         df: 图片的表格dataframe
@@ -35,8 +35,10 @@ def pad_images(df,im_size = 512  ,is_train=True):
     categories = df.image_category.unique()
     dirname = os.path.dirname(__file__)
     if is_train:
-
-        pre_path =  os.path.join(dirname , "../train/")
+        if len(arg_path)>0:
+            pre_path =  os.path.join(dirname , arg_path)
+        else:
+            pre_path =  os.path.join(dirname , "../train/")
         output_path = pre_path[:-1]+"_pad/"
         output_anno_path = os.path.join(output_path , "Annotations" )
         if not os.path.exists(output_anno_path):

@@ -15,3 +15,9 @@ pd_df = pre.pad_images(input_train_df )
 pre.write_with_category(pd_df , pre_path=train_pad_path ,is_train = True)
 
 
+
+df_file_path = os.path.join(dirname , "../valid/Annotations/annotations.csv")
+train_pad_path = os.path.join(dirname , "../valid_pad/")
+input_train_df = pd.read_csv(df_file_path )
+pd_df = pre.pad_images(input_train_df,arg_path = "../valid/" )
+pre.write_with_category(pd_df , pre_path=train_pad_path ,is_train = True)

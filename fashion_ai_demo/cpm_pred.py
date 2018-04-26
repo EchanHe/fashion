@@ -6,8 +6,6 @@ import tensorflow as tf
 
 slim = tf.contrib.slim
 
-# import vgg
-# import vgg16_coord_model as model
 import numpy as np
 import pandas as pd
 
@@ -15,21 +13,22 @@ import sys
 import os
 import argparse
 
-import train_input
-import cpm
 import sys
 
 util_folder_name = 'util'
-image_folder_name = 'test_pad'
+model_folder_name = 'model'
+image_folder_name = 'test_pad/'
 result_foler_name = 'result'
 
 dirname = os.path.dirname(__file__)
 #根目录变量 rootdir
-rootdir = os.path.abspath(dirname)
+rootdir = os.path.abspath(os.path.join(dirname,".."))
 
 sys.path.append(os.path.join(rootdir, util_folder_name))
+sys.path.append(os.path.join(rootdir, model_folder_name))
 import categories
-
+import train_input
+import cpm
 
 
 parser = argparse.ArgumentParser()
