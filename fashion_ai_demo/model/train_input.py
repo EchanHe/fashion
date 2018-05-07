@@ -232,7 +232,7 @@ class data_stream:
             center_mini = set_y_center_map(df_mini , self.scale , 1)
 
             center_label_mini = set_y_center_map(df_mini , self.scale)
-            vis_mini = set_y_vis_map(df_mini)
+            vis_mini = set_y_vis_map(df_mini,scale = self.scale)
         # print("X shape: ",x_mini.shape , "Y shape: " , y_mini.shape)
         # print("Coords shape: ",coords_mini.shape , "Map shape: " , center_mini.shape)
 
@@ -260,7 +260,7 @@ class data_stream:
             coords_mini = set_y_coord(df_mini , 1 , True)
             center_mini = set_y_center_map(df_mini , self.scale , 1)
             center_label_mini = set_y_center_map(df_mini , self.scale)
-            vis_mini = set_y_vis_map(df_mini)
+            vis_mini = set_y_vis_map(df_mini,scale = self.scale)
         self.start_idx += batch_size
 
         if is_train:
@@ -287,7 +287,7 @@ class data_stream:
             coords_mini = set_y_coord(df_mini , 1 , True)
             center_mini = set_y_center_map(df_mini , self.scale , 1)
             center_label_mini = set_y_center_map(df_mini , self.scale)
-            vis_mini = set_y_vis_map(df_mini)
+            vis_mini = set_y_vis_map(df_mini,scale = self.scale)
         self.start_idx += batch_size
         # print(x_mini.shape)
         if is_train:
